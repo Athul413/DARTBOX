@@ -1,19 +1,37 @@
+
 name: Build DartBox APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-
-permissions:
-  contents: read
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Extract project ZIP if needed
+        run: |
+          if [ -f "DartBox-starter.zip" ]; then
+            unzip -o DartBox-starter.zip -d .
+          fi
+
+      - name: Find Gradle project
+        run: |
+          if [ -f "settings.gradle" ]; then
+            echo "PROJECT_DIR=." >> $GITHUB_ENV
+          elif [ -f "DartBox/settings.gradle" ]; then
+            echo "PROJECT_DIR=DartBox" >> $GITHUB_ENV
+          else
+            echo "Could not find settings.gradle"
+            find . -maxdepth 4 -name settings.gradle
+            exit 1
+          fi
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -26,12 +44,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
+      - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DartBox-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
